@@ -1,0 +1,2007 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RVO Tablet Dashboard — PoC</title>
+  <style>
+    /* ═══════════════════════════════════════════════════════════════════════════
+       TOKENS — mapped from variables.scss
+       ═══════════════════════════════════════════════════════════════════════════ */
+    :root {
+      --yellow-100: #fff5be;
+      --yellow-200: #f8dc38;
+      --yellow-500: #da7b01;
+
+      --orange-100: #fff6ec;
+      --orange-150: #ffecda;
+      --orange-200: #ffe4c7;
+      --orange-300: #f7c58f;
+      --orange-400: #f6a34c;
+      --orange-600: #e98300;
+      --orange-700: #fc895e;
+      --orange-800: #e75527;
+      --orange-900: #e03616;
+
+      --green-50:  #e5fbef;
+      --green-200: #24dd7d;
+      --green-400: #00af54;
+      --green-500: #0f8849;
+
+      --blue-50:  #e9f3fd;
+      --blue-100: #daebfb;
+      --blue-150: #b4c6fe;
+      --blue-200: #6482ff;
+      --blue-300: #8d73e4;
+      --blue-400: #374fc7;
+      --blue-500: #1a38b2;
+
+      --red-100: #ffedea;
+      --red-300: #fd5839;
+      --red-400: #e03616;
+      --red-500: #bb2d13;
+
+      --grey-25:  #f1f1f1;
+      --grey-50:  #e0dfdd;
+      --grey-200: #babdc2;
+      --grey-300: #a2a0a0;
+      --grey-400: #858585;
+      --grey-600: #5a5e6b;
+      --grey-700: #3b3f4d;
+      --grey-900: #000000;
+
+      --font-size-h6: 1.1875rem;
+      --font-size-s1: 0.9375rem;
+      --font-size-s2: 0.8125rem;
+      --font-size-p2: 0.8125rem;
+      --font-size-b2: 0.875rem;
+      --font-size-b3: 0.75rem;
+      --font-size-l1: 0.9375rem;
+      --font-size-l2: 0.8125rem;
+      --font-size-t1: 0.8125rem;
+      --font-size-t2: 0.6875rem;
+
+      --font-weight-regular:  400;
+      --font-weight-medium:   500;
+      --font-weight-semibold: 600;
+      --font-weight-bold:     700;
+
+      --light-shadow-8:  0 2px 4px 1px hsla(0, 0%, 0%, 7%);
+      --light-shadow-16: 0 8px 16px 0 hsla(0, 0%, 0%, 16%);
+      --light-shadow-32: 0 16px 32px 0 hsla(0, 0%, 0%, 16%);
+
+      --space-4:  4px;
+      --space-8:  8px;
+      --space-12: 12px;
+      --space-16: 16px;
+      --space-20: 20px;
+      --space-24: 24px;
+      --space-32: 32px;
+      --space-48: 48px;
+
+      --rail-width: 72px;
+      --control-bar-height: 56px;
+      --fab-size: 56px;
+      --table-row-height: 48px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       BASE
+       ═══════════════════════════════════════════════════════════════════════════ */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Inter', system-ui, sans-serif;
+      background-color: var(--orange-100);
+      color: var(--grey-900);
+      -webkit-tap-highlight-color: transparent;
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    button { all: unset; cursor: pointer; }
+    h1,h2,h3,h4,h5,h6 { margin: 0; }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       STATUS UTILITIES — spec-aligned colours with dot support
+       ═══════════════════════════════════════════════════════════════════════════ */
+    .status-completed { --status-bg: var(--green-50);   --status-text: var(--green-500);  --status-dot: var(--green-400); }
+    .status-draft     { --status-bg: var(--yellow-100); --status-text: var(--yellow-500); --status-dot: var(--yellow-500); }
+    .status-follow_up { --status-bg: var(--blue-50);    --status-text: var(--blue-400);   --status-dot: var(--blue-400); }
+    .status-scheduled { --status-bg: var(--blue-100);   --status-text: var(--blue-500);   --status-dot: var(--blue-400); }
+    .status-edit      { --status-bg: var(--orange-150); --status-text: var(--orange-800); --status-dot: var(--orange-600); }
+
+    /* Badge: pill with left dot — matches VisitTag component anatomy in spec */
+    .visit-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: var(--font-size-t1);
+      font-weight: var(--font-weight-semibold);
+      background: var(--status-bg);
+      color: var(--status-text);
+      white-space: nowrap;
+    }
+    .visit-tag::before {
+      content: '';
+      display: block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--status-dot);
+      flex-shrink: 0;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       LAYOUT SHELL
+       ═══════════════════════════════════════════════════════════════════════════ */
+    .app-shell {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       SIDE RAIL — structure kept, colours updated to spec
+       Background: orange-100  Border-right: orange-200
+       Items: grey-600 default  Hover: orange-200 bg  Active: orange-150 bg + orange-800 text
+       ═══════════════════════════════════════════════════════════════════════════ */
+    .side-rail {
+      width: var(--rail-width);
+      min-width: var(--rail-width);
+      height: 100vh;
+      background: var(--orange-100);
+      border-right: 1px solid var(--orange-200);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: var(--space-12) 0;
+      z-index: 10;
+    }
+
+    .rail-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      width: 100%;
+      padding: var(--space-12) var(--space-4);
+      color: var(--grey-600);
+      text-decoration: none;
+      cursor: pointer;
+      transition: color 0.15s, background 0.15s;
+      border: none;
+      background: none;
+      position: relative;
+    }
+
+    .rail-item:hover {
+      color: var(--grey-700);
+      background: var(--orange-200);
+    }
+
+    .rail-item.active {
+      background: var(--orange-150);
+      color: var(--orange-800);
+    }
+
+    .rail-item.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 8px;
+      bottom: 8px;
+      width: 3px;
+      background: var(--orange-800);
+      border-radius: 0 2px 2px 0;
+    }
+
+    .rail-icon {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .rail-icon svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+    }
+
+    .rail-label {
+      font-size: 10px;
+      font-weight: var(--font-weight-medium);
+      letter-spacing: 0.02em;
+      text-align: center;
+      line-height: 1.2;
+      max-width: 64px;
+      word-wrap: break-word;
+    }
+
+    .rail-spacer { flex: 1; }
+
+    .rail-divider {
+      width: 40px;
+      height: 1px;
+      background: var(--orange-200);
+      margin: var(--space-8) 0;
+    }
+
+    /* Danger items (logout) — red-400 text, red-100 hover per spec */
+    .rail-item.danger { color: var(--red-400); }
+    .rail-item.danger:hover { color: var(--red-400); background: var(--red-100); }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       MAIN CONTENT
+       ═══════════════════════════════════════════════════════════════════════════ */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       CONTROL BAR
+       ═══════════════════════════════════════════════════════════════════════════ */
+    .control-bar {
+      display: flex;
+      align-items: center;
+      gap: var(--space-12);
+      padding: var(--space-12) var(--space-16);
+      background: white;
+      border-bottom: 1px solid var(--grey-25);
+      min-height: var(--control-bar-height);
+      flex-shrink: 0;
+    }
+
+    /* Search input — pill with shadow, grey-300 placeholder/icon */
+    .search-input {
+      display: flex;
+      align-items: center;
+      gap: var(--space-8);
+      height: 44px;
+      border-radius: 24px;
+      padding: 10px 14px;
+      min-width: 200px;
+      box-shadow: var(--light-shadow-8);
+      background: white;
+      flex: 1;
+    }
+
+    .search-input svg {
+      width: 16px;
+      height: 16px;
+      color: var(--grey-300);
+      flex-shrink: 0;
+    }
+
+    .search-input input {
+      all: unset;
+      width: 100%;
+      font-size: var(--font-size-s1);
+      font-weight: var(--font-weight-regular);
+      color: var(--grey-700);
+    }
+
+    .search-input input::placeholder { color: var(--grey-300); }
+
+    /* Clear button inside search — appears when query non-empty */
+    .search-clear {
+      display: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--grey-50);
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      color: var(--grey-600);
+      font-size: 14px;
+      line-height: 1;
+    }
+    .search-clear:hover { background: var(--grey-200); }
+    .search-clear.visible { display: flex; }
+
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: var(--space-8);
+    }
+
+    /* Filter pills — styled as secondary buttons with border */
+    .filter-pill {
+      display: flex;
+      align-items: center;
+      gap: var(--space-4);
+      height: 36px;
+      padding: 0 var(--space-12);
+      border-radius: 18px;
+      background: white;
+      border: 1px solid var(--grey-50);
+      color: var(--grey-700);
+      font-size: var(--font-size-t1);
+      font-weight: var(--font-weight-semibold);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      white-space: nowrap;
+      position: relative;
+    }
+
+    .filter-pill:hover { background: var(--orange-100); border-color: var(--orange-300); }
+
+    .filter-pill.active {
+      background: var(--orange-150);
+      border-color: var(--orange-600);
+      color: var(--orange-800);
+    }
+
+    .filter-pill svg { width: 14px; height: 14px; }
+
+    .filter-pill .chevron-down {
+      width: 12px;
+      height: 12px;
+      transition: transform 0.15s;
+      color: var(--grey-400);
+    }
+
+    .filter-pill.active .chevron-down { color: var(--orange-600); }
+
+    .control-spacer { flex: 0 0 auto; }
+
+    .sort-indicator {
+      display: flex;
+      align-items: center;
+      gap: var(--space-4);
+      font-size: var(--font-size-s2);
+      font-weight: var(--font-weight-medium);
+      color: var(--grey-300);
+      cursor: pointer;
+      padding: var(--space-4) var(--space-8);
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    .sort-indicator:hover { background: var(--grey-25); }
+    .sort-indicator svg { width: 14px; height: 14px; }
+
+    .view-toggle {
+      display: flex;
+      background: var(--grey-25);
+      border-radius: 8px;
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .view-toggle-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 32px;
+      border-radius: 6px;
+      cursor: pointer;
+      color: var(--grey-400);
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .view-toggle-btn:hover { color: var(--grey-700); }
+
+    .view-toggle-btn.active {
+      background: white;
+      color: var(--grey-900);
+      box-shadow: var(--light-shadow-8);
+    }
+
+    .view-toggle-btn svg { width: 18px; height: 18px; }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       FILTER DROPDOWN
+       ═══════════════════════════════════════════════════════════════════════════ */
+    .filter-dropdown {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      background: white;
+      border-radius: 8px;
+      box-shadow: var(--light-shadow-16);
+      padding: var(--space-8) 0;
+      min-width: 180px;
+      z-index: 20;
+      display: none;
+    }
+
+    .filter-dropdown.open { display: block; }
+
+    .filter-dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-8);
+      padding: var(--space-8) var(--space-16);
+      font-size: var(--font-size-s2);
+      font-weight: var(--font-weight-regular);
+      color: var(--grey-700);
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+
+    .filter-dropdown-item:hover { background: var(--orange-100); }
+    .filter-dropdown-item.selected { font-weight: var(--font-weight-semibold); color: var(--orange-800); }
+
+    .filter-dropdown-item .check { width: 16px; height: 16px; opacity: 0; }
+    .filter-dropdown-item.selected .check { opacity: 1; color: var(--orange-800); }
+
+    .filter-dropdown-search { padding: var(--space-4) var(--space-12) var(--space-8); }
+
+    .filter-dropdown-search input {
+      all: unset;
+      width: 100%;
+      font-size: var(--font-size-s2);
+      padding: var(--space-4) var(--space-8);
+      border: 1px solid var(--grey-50);
+      border-radius: 4px;
+    }
+
+    .filter-dropdown-search input::placeholder { color: var(--grey-300); }
+
+    .filter-clear {
+      display: flex;
+      align-items: center;
+      padding: var(--space-8) var(--space-16);
+      font-size: var(--font-size-t2);
+      color: var(--grey-400);
+      cursor: pointer;
+      border-top: 1px solid var(--grey-25);
+      margin-top: var(--space-4);
+    }
+
+    .filter-clear:hover { color: var(--orange-800); }
+
+    /* Date range section inside filter dropdown */
+    .filter-date-section {
+      padding: var(--space-12) var(--space-16) var(--space-8);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-8);
+    }
+
+    .filter-date-row {
+      display: flex;
+      align-items: center;
+      gap: var(--space-8);
+    }
+
+    .filter-date-label {
+      font-size: var(--font-size-t2);
+      font-weight: var(--font-weight-semibold);
+      color: var(--grey-400);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      width: 24px;
+      flex-shrink: 0;
+    }
+
+    .filter-date-input {
+      all: unset;
+      font-family: inherit;
+      font-size: var(--font-size-s2);
+      color: var(--grey-700);
+      border: 1px solid var(--grey-50);
+      border-radius: 4px;
+      padding: 4px 8px;
+      cursor: pointer;
+      width: 120px;
+    }
+
+    .filter-date-input:focus { border-color: var(--orange-400); outline: none; }
+
+    /* Pill label span (for dynamic date range labels) */
+    .filter-pill-label { pointer-events: none; }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       RESULTS BAR — space-between, s2, grey-300, no background
+       ═══════════════════════════════════════════════════════════════════════════ */
+    .results-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 18px 10px;
+    }
+
+    .results-count {
+      font-size: var(--font-size-s2);
+      font-weight: var(--font-weight-regular);
+      color: var(--grey-300);
+    }
+
+    .results-sort-label {
+      font-size: var(--font-size-s2);
+      font-weight: var(--font-weight-regular);
+      color: var(--grey-300);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       TABLE VIEW — wrapper with shadow/radius per spec
+       ═══════════════════════════════════════════════════════════════════════════ */
+    .table-view {
+      flex: 1;
+      overflow: auto;
+      padding: 0;
+    }
+
+    .table-view.hidden { display: none; }
+
+    /* Wrapper gives the table its card appearance */
+    .table-wrapper {
+      margin: 0 16px 20px;
+      background: white;
+      border-radius: 10px;
+      box-shadow: var(--light-shadow-8);
+      overflow: hidden;
+    }
+
+    .visit-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    .visit-table thead {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+
+    /* Table headers — grey-25 bg, t2 uppercase per spec */
+    .visit-table th {
+      background: var(--grey-25);
+      text-align: left;
+      padding: 10px 14px;
+      font-size: var(--font-size-t2);
+      font-weight: var(--font-weight-semibold);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--grey-400);
+      border-bottom: 1px solid var(--grey-50);
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    .visit-table th:hover { color: var(--grey-700); }
+    .visit-table th:hover .sort-arrow { opacity: 1; }
+
+    .visit-table th.no-sort { cursor: default; }
+    .visit-table th.no-sort:hover { color: var(--grey-400); }
+
+    .visit-table th .sort-arrow {
+      display: inline-block;
+      margin-left: 4px;
+      font-size: 10px;
+      opacity: 0.3;
+      color: var(--grey-200);
+    }
+
+    .visit-table th.sorted .sort-arrow {
+      opacity: 1;
+      color: var(--orange-800);
+    }
+
+    /* Cells — p2 font, 12px 14px padding per spec */
+    .visit-table td {
+      padding: 12px 14px;
+      height: var(--table-row-height);
+      font-size: var(--font-size-p2);
+      font-weight: var(--font-weight-regular);
+      color: var(--grey-700);
+      border-bottom: 1px solid var(--grey-25);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      vertical-align: middle;
+    }
+
+    .visit-table tbody tr:last-child td { border-bottom: none; }
+
+    .visit-table tbody tr {
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+
+    .visit-table tbody tr:hover { background: var(--orange-100); }
+
+    /* Overdue row: inset left stripe instead of urgency dot column */
+    .visit-table tbody tr.row-overdue {
+      box-shadow: inset 3px 0 0 var(--red-400);
+    }
+
+    /* Column widths per spec */
+    .col-status      { width: 120px; }
+    .col-bedrift     { /* auto — fills remaining space */ }
+    .col-dato        { width: 96px; }
+    .col-kommune     { width: 100px; }
+    .col-inspeksjoner{ width: 130px; }
+    .col-arbeidsplass{ width: 120px; }
+    .col-frist       { width: 88px; }
+
+    /* Company cell — two lines */
+    .company-primary {
+      font-size: var(--font-size-s1);
+      font-weight: var(--font-weight-semibold);
+      color: var(--grey-700);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .company-secondary {
+      font-size: var(--font-size-p2);
+      font-weight: var(--font-weight-regular);
+      color: var(--grey-400);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .company-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      overflow: hidden;
+    }
+
+    /* Date cell */
+    .td-date { font-size: var(--font-size-s2); font-weight: var(--font-weight-medium); color: var(--grey-600); }
+    .td-date.violation { color: var(--red-400); font-weight: var(--font-weight-semibold); }
+
+    /* Deadline cell */
+    .td-deadline { color: var(--grey-600); }
+    .td-deadline.overdue { color: var(--red-400); font-weight: var(--font-weight-semibold); }
+    .td-null { color: var(--grey-200); }
+
+    /* Municipality cell */
+    .td-municipality { color: var(--grey-600); }
+
+    /* Workplace cell */
+    .td-workplace { color: var(--grey-400); }
+
+    /* Inspection badges */
+    .inspection-badges {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .insp-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: var(--font-size-t1);
+      font-weight: var(--font-weight-semibold);
+    }
+
+    .insp-badge svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+    .insp-badge.issues    { color: var(--red-300); }
+    .insp-badge.stops     { color: var(--red-400); }
+    .insp-badge.oks       { color: var(--green-400); }
+    .insp-badge.guidances { color: var(--blue-400); }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       BOARD VIEW
+       ═══════════════════════════════════════════════════════════════════════════ */
+    .board-view {
+      flex: 1;
+      display: none;
+      gap: var(--space-16);
+      padding: var(--space-16) var(--space-24) var(--space-24);
+      overflow: auto;
+    }
+
+    .board-view.active { display: flex; }
+
+    /* Column lane: grey-25 bg so white cards lift off it */
+    .board-column {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-8);
+      background: var(--grey-25);
+      border-radius: 10px;
+      padding: var(--space-12);
+    }
+
+    /* Column header: title left, count badge right */
+    .board-column-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 2px 8px;
+      border-bottom: 2px solid currentColor;
+      margin-bottom: var(--space-4);
+    }
+
+    .board-column.col-draft    { color: var(--yellow-500); }
+    .board-column.col-followup { color: var(--blue-400); }
+    .board-column.col-finished { color: var(--green-400); }
+
+    .board-column-title {
+      font-size: var(--font-size-b2);
+      font-weight: var(--font-weight-semibold);
+      color: var(--grey-700);
+    }
+
+    /* Count pill — tinted with column accent */
+    .board-column-count {
+      font-size: var(--font-size-t2);
+      font-weight: var(--font-weight-semibold);
+      color: currentColor;
+      background: white;
+      border-radius: 10px;
+      padding: 2px 8px;
+      min-width: 22px;
+      text-align: center;
+    }
+
+    .board-cards {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-8);
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    /* Empty column placeholder */
+    .board-cards-empty {
+      font-size: var(--font-size-s2);
+      color: var(--grey-200);
+      text-align: center;
+      padding: var(--space-24) 0;
+    }
+
+    /* ── Visit card — matches Card/Visit component anatomy ── */
+    .visit-card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: var(--light-shadow-8);
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: box-shadow 0.15s;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      position: relative;
+    }
+
+    .visit-card:hover { box-shadow: var(--light-shadow-16); }
+
+    /* Overdue: inset left stripe, same as table */
+    .visit-card.card-overdue {
+      box-shadow: inset 3px 0 0 var(--red-400), var(--light-shadow-8);
+    }
+    .visit-card.card-overdue:hover {
+      box-shadow: inset 3px 0 0 var(--red-400), var(--light-shadow-16);
+    }
+
+    /* Header: company name + tag */
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .card-company {
+      font-size: var(--font-size-h6);
+      font-weight: var(--font-weight-medium);
+      color: var(--grey-900);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
+
+    /* Tag pill — same anatomy as visit-tag but explicit class for card context */
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: var(--font-size-t1);
+      font-weight: var(--font-weight-semibold);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .tag-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .tag.completed  { background: var(--green-50);    color: var(--green-500); }
+    .tag.completed  .tag-dot { background: var(--green-400); }
+    .tag.draft      { background: var(--yellow-100);  color: var(--yellow-500); }
+    .tag.draft      .tag-dot { background: var(--yellow-500); }
+    .tag.follow_up  { background: var(--blue-50);     color: var(--blue-400); }
+    .tag.follow_up  .tag-dot { background: var(--blue-400); }
+    .tag.scheduled  { background: var(--blue-100);    color: var(--blue-500); }
+    .tag.scheduled  .tag-dot { background: var(--blue-400); }
+    .tag.edit       { background: var(--orange-150);  color: var(--orange-800); }
+    .tag.edit       .tag-dot { background: var(--orange-600); }
+
+    /* Date row */
+    .card-date {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: var(--font-size-s2);
+      font-weight: var(--font-weight-regular);
+      color: var(--grey-400);
+    }
+
+    /* Footer: inspection row + chevron, then address */
+    .card-footer { display: flex; flex-direction: column; gap: 6px; }
+
+    .card-footer-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .inspection-row { display: flex; align-items: center; gap: 8px; }
+
+    .ic {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: var(--font-size-t1);
+      font-weight: var(--font-weight-semibold);
+    }
+
+    .ic svg    { flex-shrink: 0; }
+    .ic.alert  { color: var(--red-300); }
+    .ic.stop   { color: var(--red-400); }
+    .ic.ok     { color: var(--green-400); }
+    .ic.info   { color: var(--blue-400); }
+    .ic-none   { color: var(--grey-200); font-size: var(--font-size-t1); font-weight: var(--font-weight-semibold); }
+
+    .chevron-right { color: var(--grey-200); flex-shrink: 0; }
+
+    /* Address row */
+    .card-address {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: var(--font-size-p2);
+      font-weight: var(--font-weight-regular);
+      color: var(--grey-400);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       FAB
+       ═══════════════════════════════════════════════════════════════════════════ */
+    .fab {
+      position: fixed;
+      bottom: var(--space-24);
+      right: var(--space-24);
+      width: var(--fab-size);
+      height: var(--fab-size);
+      border-radius: 50%;
+      background: var(--orange-800);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--light-shadow-16);
+      cursor: pointer;
+      z-index: 15;
+      transition: background 0.15s, transform 0.15s;
+    }
+
+    .fab:hover { background: var(--orange-900); transform: scale(1.05); }
+    .fab:active { transform: scale(0.96); }
+    .fab svg { width: 24px; height: 24px; }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       EMPTY STATE — search icon (32px grey-200) + h6 heading + Fjern søk link
+       ═══════════════════════════════════════════════════════════════════════════ */
+    .empty-state {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-48);
+      gap: var(--space-12);
+      flex: 1;
+    }
+
+    .empty-state.visible { display: flex; }
+
+    .empty-state svg { color: var(--grey-200); }
+
+    .empty-state-heading {
+      font-size: var(--font-size-h6);
+      font-weight: var(--font-weight-semibold);
+      color: var(--grey-400);
+    }
+
+    .empty-state-clear {
+      font-size: var(--font-size-s2);
+      color: var(--orange-800);
+      text-decoration: underline;
+      cursor: pointer;
+      background: none;
+      border: none;
+      display: none;
+    }
+
+    .empty-state-clear:hover { color: var(--orange-900); }
+    .empty-state-clear.visible { display: block; }
+  </style>
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- ═══════ SIDE RAIL ═══════ -->
+  <nav class="side-rail">
+    <button class="rail-item active" title="Hjem">
+      <span class="rail-icon"><svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></span>
+      <span class="rail-label">Hjem</span>
+    </button>
+
+    <div class="rail-divider"></div>
+
+    <button class="rail-item" title="Nytt ordinært tilsyn" onclick="alert('Nytt besøk — ikke tilkoblet i prototype')">
+      <span class="rail-icon"><svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg></span>
+      <span class="rail-label">Nytt ordinært tilsyn</span>
+    </button>
+
+    <button class="rail-item" title="Enkel">
+      <span class="rail-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 7V3.5L18.5 9H13z"/></svg></span>
+      <span class="rail-label">Enkel</span>
+    </button>
+
+    <button class="rail-item" title="Brev om godkjenning">
+      <span class="rail-icon"><svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg></span>
+      <span class="rail-label">Brev om godkj.</span>
+    </button>
+
+    <button class="rail-item" title="HMS-Kurs">
+      <span class="rail-icon"><svg viewBox="0 0 24 24"><path d="M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z"/></svg></span>
+      <span class="rail-label">HMS-Kurs</span>
+    </button>
+
+    <button class="rail-item" title="Samtale med ansatte">
+      <span class="rail-icon"><svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg></span>
+      <span class="rail-label">Samtale</span>
+    </button>
+
+    <div class="rail-spacer"></div>
+    <div class="rail-divider"></div>
+
+    <button class="rail-item" title="Admin">
+      <span class="rail-icon"><svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.49.49 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg></span>
+      <span class="rail-label">Admin</span>
+    </button>
+
+    <button class="rail-item" title="Desktop">
+      <span class="rail-icon"><svg viewBox="0 0 24 24"><path d="M21 2H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h7l-2 3v1h8v-1l-2-3h7c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 12H3V4h18v10z"/></svg></span>
+      <span class="rail-label">Desktop</span>
+    </button>
+
+    <button class="rail-item danger" title="Logg ut">
+      <span class="rail-icon"><svg viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" fill="currentColor"/></svg></span>
+      <span class="rail-label">Logg ut</span>
+    </button>
+  </nav>
+
+  <!-- ═══════ MAIN CONTENT ═══════ -->
+  <main class="main-content">
+
+    <!-- Control Bar -->
+    <div class="control-bar">
+      <div class="search-input">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="Søk virksomhet, adresse, kommune..." id="searchInput">
+        <span class="search-clear" id="searchClear">✕</span>
+      </div>
+
+      <div class="filter-group">
+
+        <!-- Dato: date range Fra / Til -->
+        <button class="filter-pill" data-filter="dato">
+          <span class="filter-pill-label">Dato</span>
+          <svg class="chevron-down" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+          <div class="filter-dropdown" id="dropdown-dato">
+            <div class="filter-date-section">
+              <div class="filter-date-row">
+                <span class="filter-date-label">Fra</span>
+                <input type="date" class="filter-date-input" id="dato-fra">
+              </div>
+              <div class="filter-date-row">
+                <span class="filter-date-label">Til</span>
+                <input type="date" class="filter-date-input" id="dato-til">
+              </div>
+            </div>
+            <div class="filter-clear">Nullstill</div>
+          </div>
+        </button>
+
+        <!-- Status: single-select dropdown (unchanged) -->
+        <button class="filter-pill" data-filter="status">
+          Status
+          <svg class="chevron-down" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+          <div class="filter-dropdown" id="dropdown-status">
+            <div class="filter-dropdown-item" data-value="completed">Ferdig</div>
+            <div class="filter-dropdown-item" data-value="draft">Utkast</div>
+            <div class="filter-dropdown-item" data-value="follow_up">Oppfølging</div>
+            <div class="filter-dropdown-item" data-value="scheduled">Planlagt</div>
+            <div class="filter-dropdown-item" data-value="edit">Redigering</div>
+            <div class="filter-clear">Nullstill</div>
+          </div>
+        </button>
+
+        <!-- Frist: deadline date range Fra / Til -->
+        <button class="filter-pill" data-filter="frist">
+          <span class="filter-pill-label">Frist</span>
+          <svg class="chevron-down" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+          <div class="filter-dropdown" id="dropdown-frist">
+            <div class="filter-date-section">
+              <div class="filter-date-row">
+                <span class="filter-date-label">Fra</span>
+                <input type="date" class="filter-date-input" id="frist-fra">
+              </div>
+              <div class="filter-date-row">
+                <span class="filter-date-label">Til</span>
+                <input type="date" class="filter-date-input" id="frist-til">
+              </div>
+            </div>
+            <div class="filter-clear">Nullstill</div>
+          </div>
+        </button>
+
+        <!-- Virksomhet: top 5, populated by JS -->
+        <button class="filter-pill" data-filter="company">
+          Virksomhet
+          <svg class="chevron-down" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+          <div class="filter-dropdown" id="dropdown-company">
+            <div class="filter-clear">Nullstill</div>
+          </div>
+        </button>
+
+        <!-- Kommune: top 5, populated by JS -->
+        <button class="filter-pill" data-filter="municipality">
+          Kommune
+          <svg class="chevron-down" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+          <div class="filter-dropdown" id="dropdown-municipality">
+            <div class="filter-clear">Nullstill</div>
+          </div>
+        </button>
+
+      </div>
+
+      <div class="control-spacer"></div>
+
+      <div class="sort-indicator" id="sortIndicator">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h6v-2H3v2zM3 6v2h18V6H3zm0 7h12v-2H3v2z"/></svg>
+        <span id="sortLabel">Sortert etter dato ↓</span>
+      </div>
+
+      <div class="view-toggle">
+        <button class="view-toggle-btn active" data-view="table" title="Tabell">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h18v2H3V3zm0 4h18v2H3V7zm0 4h18v2H3v-2zm0 4h18v2H3v-2zm0 4h18v2H3v-2z"/></svg>
+        </button>
+        <button class="view-toggle-btn" data-view="board" title="Tavle">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h4v16H4V4zm6 0h4v16h-4V4zm6 0h4v16h-4V4z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Results bar -->
+    <div class="results-header" id="resultsHeader">
+      <span class="results-count" id="resultsCount">24 tilsyn</span>
+      <span class="results-sort-label" id="resultsSortLabel">Sortert etter dato ↓</span>
+    </div>
+
+    <!-- Table View -->
+    <div class="table-view" id="tableView">
+      <div class="table-wrapper">
+        <table class="visit-table">
+          <thead>
+            <tr>
+              <th class="col-status" data-sort="status">STATUS <span class="sort-arrow">↕</span></th>
+              <th class="col-bedrift" data-sort="companyName">BEDRIFT <span class="sort-arrow">↕</span></th>
+              <th class="col-dato sorted" data-sort="date">DATO <span class="sort-arrow">↓</span></th>
+              <th class="col-kommune" data-sort="municipality">KOMMUNE <span class="sort-arrow">↕</span></th>
+              <th class="col-inspeksjoner no-sort">INSPEKSJONER</th>
+              <th class="col-arbeidsplass" data-sort="workplace">ARBEIDSPLASS <span class="sort-arrow">↕</span></th>
+              <th class="col-frist" data-sort="deadline">FRIST <span class="sort-arrow">↕</span></th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+
+      <!-- Empty State inside table view -->
+      <div class="empty-state" id="emptyState">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <h6 class="empty-state-heading">Ingen tilsyn funnet</h6>
+        <button class="empty-state-clear" id="clearSearch">Fjern søk</button>
+      </div>
+    </div>
+
+    <!-- Board View -->
+    <div class="board-view" id="boardView">
+      <div class="board-column col-draft">
+        <div class="board-column-header">
+          <span class="board-column-title">Utkast</span>
+          <span class="board-column-count" id="count-draft">0</span>
+        </div>
+        <div class="board-cards" id="cards-draft"></div>
+      </div>
+      <div class="board-column col-followup">
+        <div class="board-column-header">
+          <span class="board-column-title">Oppfølging</span>
+          <span class="board-column-count" id="count-followup">0</span>
+        </div>
+        <div class="board-cards" id="cards-followup"></div>
+      </div>
+      <div class="board-column col-finished">
+        <div class="board-column-header">
+          <span class="board-column-title">Ferdig</span>
+          <span class="board-column-count" id="count-finished">0</span>
+        </div>
+        <div class="board-cards" id="cards-finished"></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- FAB -->
+<button class="fab" title="Nytt tilsyn" onclick="alert('Nytt besøk — ikke tilkoblet i prototype')">
+  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+</button>
+
+<script>
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MOCK DATA — VisitSearchResponse structure, 24 records
+  // (records 1001–1012 from spec; 1013–1024 added to reach 24)
+  // ═══════════════════════════════════════════════════════════════════════════
+  const mockVisits = [
+    {
+      companyVisitId: 1001, companyName: 'Norsk Stål AS',
+      status: 'completed', date: { value: '2026-03-12', inViolation: false },
+      municipality: 'Oslo', address: 'Storgata 14, Oslo',
+      workplace: { value: 'Verkstedbygget Nord' },
+      issues: 2, stops: 1, guidances: 1, oks: 4,
+      visitReport: 'https://example.com/r/1001',
+      deadline: null, deadlinesOverdue: null,
+    },
+    {
+      companyVisitId: 1002, companyName: 'Bergen Fisk AS', companyAka: 'BF Seafood',
+      status: 'draft', date: { value: '2026-03-10', inViolation: false },
+      municipality: 'Bergen', address: 'Fisketorget 3, Bergen',
+      workplace: null,
+      issues: 0, stops: 0, guidances: 0, oks: 2,
+      visitReport: '',
+      deadline: null, deadlinesOverdue: null,
+    },
+    {
+      companyVisitId: 1003, companyName: 'Tromsø Transport AS',
+      status: 'follow_up', date: { value: '2026-03-08', inViolation: false },
+      municipality: 'Tromsø', address: 'Havnegata 7, Tromsø',
+      workplace: { value: 'Havneterminal 2' },
+      issues: 1, stops: 2, guidances: 0, oks: 3,
+      visitReport: '',
+      deadline: '2026-02-15', deadlinesOverdue: true,
+    },
+    {
+      companyVisitId: 1004, companyName: 'Stavanger Mekaniske Verksteder',
+      status: 'scheduled', date: { value: '2026-03-15', inViolation: false },
+      municipality: 'Stavanger', address: 'Verkstedveien 2, Stavanger',
+      workplace: null,
+      issues: 0, stops: 0, guidances: 0, oks: 0,
+      visitReport: '',
+      deadline: null, deadlinesOverdue: null,
+    },
+    {
+      companyVisitId: 1005, companyName: 'Kristiansand Bygg og Anlegg',
+      status: 'edit', date: { value: '2026-03-06', inViolation: false },
+      municipality: 'Kristiansand', address: 'Markensgate 5, Kristiansand',
+      workplace: { value: 'Anleggskontoret' },
+      issues: 3, stops: 1, guidances: 2, oks: 5,
+      visitReport: 'https://example.com/r/1005',
+      deadline: '2026-03-20', deadlinesOverdue: false,
+    },
+    {
+      companyVisitId: 1006, companyName: 'Drammen Industri AS',
+      status: 'completed', date: { value: '2026-03-04', inViolation: false },
+      municipality: 'Drammen', address: 'Schweigaardsgate 12, Drammen',
+      workplace: { value: 'Produksjonshall A' },
+      issues: 0, stops: 0, guidances: 2, oks: 7,
+      visitReport: 'https://example.com/r/1006',
+      deadline: null, deadlinesOverdue: null,
+    },
+    {
+      companyVisitId: 1007, companyName: 'Fredrikstad Kjøl og Frys',
+      status: 'draft', date: { value: '2026-03-01', inViolation: false },
+      municipality: 'Fredrikstad', address: 'Nygaardsgata 8, Fredrikstad',
+      workplace: null,
+      issues: 1, stops: 0, guidances: 1, oks: 1,
+      visitReport: '',
+      deadline: null, deadlinesOverdue: null,
+    },
+    {
+      companyVisitId: 1008, companyName: 'Sandnes Renholdstjenester', companyAka: 'SRT',
+      status: 'follow_up', date: { value: '2026-02-26', inViolation: true },
+      municipality: 'Sandnes', address: 'Langgata 22, Sandnes',
+      workplace: null,
+      issues: 4, stops: 0, guidances: 3, oks: 2,
+      visitReport: '',
+      deadline: '2026-02-01', deadlinesOverdue: true,
+    },
+    {
+      companyVisitId: 1009, companyName: 'Ålesund Maritim AS',
+      status: 'completed', date: { value: '2026-02-22', inViolation: false },
+      municipality: 'Ålesund', address: 'Skipperveien 1, Ålesund',
+      workplace: { value: 'Verftsbygningen' },
+      issues: 0, stops: 0, guidances: 0, oks: 11,
+      visitReport: 'https://example.com/r/1009',
+      deadline: null, deadlinesOverdue: null,
+    },
+    {
+      companyVisitId: 1010, companyName: 'Bodø Betong og Mur',
+      status: 'scheduled', date: { value: '2026-03-18', inViolation: false },
+      municipality: 'Bodø', address: 'Industrigata 4, Bodø',
+      workplace: null,
+      issues: 0, stops: 0, guidances: 0, oks: 0,
+      visitReport: '',
+      deadline: null, deadlinesOverdue: null,
+    },
+    {
+      companyVisitId: 1011, companyName: 'Hamar Hotell og Konferanse',
+      status: 'completed', date: { value: '2026-02-18', inViolation: false },
+      municipality: 'Hamar', address: 'Strandgata 21, Hamar',
+      workplace: { value: 'Hotellfløy B' },
+      issues: 1, stops: 0, guidances: 1, oks: 6,
+      visitReport: 'https://example.com/r/1011',
+      deadline: null, deadlinesOverdue: null,
+    },
+    {
+      companyVisitId: 1012, companyName: 'Trondheim Elektro AS',
+      status: 'draft', date: { value: '2026-03-02', inViolation: false },
+      municipality: 'Trondheim', address: 'Olav Tryggvasons gate 18, Trondheim',
+      workplace: null,
+      issues: 2, stops: 0, guidances: 0, oks: 3,
+      visitReport: '',
+      deadline: null, deadlinesOverdue: null,
+    },
+    {
+      companyVisitId: 1013, companyName: 'Molde Skipsutstyr AS',
+      status: 'completed', date: { value: '2026-02-10', inViolation: false },
+      municipality: 'Molde', address: 'Storgata 5, Molde',
+      workplace: { value: 'Lager Nord' },
+      issues: 1, stops: 0, guidances: 2, oks: 5,
+      visitReport: 'https://example.com/r/1013',
+      deadline: null, deadlinesOverdue: null,
+    },
+    {
+      companyVisitId: 1014, companyName: 'Lillestrøm Stål AS', companyAka: 'LST',
+      status: 'follow_up', date: { value: '2026-02-14', inViolation: false },
+      municipality: 'Lillestrøm', address: 'Industriveien 3, Lillestrøm',
+      workplace: { value: 'Sveisehallen' },
+      issues: 2, stops: 1, guidances: 0, oks: 4,
+      visitReport: '',
+      deadline: '2026-03-10', deadlinesOverdue: false,
+    },
+    {
+      companyVisitId: 1015, companyName: 'Porsgrunn Kjemikaliefabrikk',
+      status: 'follow_up', date: { value: '2026-01-28', inViolation: true },
+      municipality: 'Porsgrunn', address: 'Fabrikkvegen 12, Porsgrunn',
+      workplace: { value: 'Produksjonsanlegg B' },
+      issues: 5, stops: 2, guidances: 1, oks: 0,
+      visitReport: '',
+      deadline: '2026-01-15', deadlinesOverdue: true,
+    },
+    {
+      companyVisitId: 1016, companyName: 'Harstad Bygg og Tømmer',
+      status: 'scheduled', date: { value: '2026-03-22', inViolation: false },
+      municipality: 'Harstad', address: 'Havnegata 9, Harstad',
+      workplace: null,
+      issues: 0, stops: 0, guidances: 0, oks: 0,
+      visitReport: '',
+      deadline: null, deadlinesOverdue: null,
+    },
+    {
+      companyVisitId: 1017, companyName: 'Gjøvik Metallvarer AS',
+      status: 'edit', date: { value: '2026-03-05', inViolation: false },
+      municipality: 'Gjøvik', address: 'Verkstedgata 7, Gjøvik',
+      workplace: { value: 'Smelteverket' },
+      issues: 1, stops: 0, guidances: 3, oks: 6,
+      visitReport: 'https://example.com/r/1017',
+      deadline: '2026-03-25', deadlinesOverdue: false,
+    },
+    {
+      companyVisitId: 1018, companyName: 'Sandefjord Maritime Service',
+      status: 'completed', date: { value: '2026-02-05', inViolation: false },
+      municipality: 'Sandefjord', address: 'Kystveien 4, Sandefjord',
+      workplace: { value: 'Verkstedbygning 2' },
+      issues: 0, stops: 0, guidances: 1, oks: 9,
+      visitReport: 'https://example.com/r/1018',
+      deadline: null, deadlinesOverdue: null,
+    },
+    {
+      companyVisitId: 1019, companyName: 'Narvik Logistikk AS', companyAka: 'NLA',
+      status: 'follow_up', date: { value: '2026-02-18', inViolation: false },
+      municipality: 'Narvik', address: 'Havneveien 11, Narvik',
+      workplace: null,
+      issues: 3, stops: 0, guidances: 2, oks: 1,
+      visitReport: '',
+      deadline: '2026-03-14', deadlinesOverdue: false,
+    },
+    {
+      companyVisitId: 1020, companyName: 'Tønsberg Næringspark',
+      status: 'scheduled', date: { value: '2026-03-25', inViolation: false },
+      municipality: 'Tønsberg', address: 'Næringsveien 6, Tønsberg',
+      workplace: null,
+      issues: 0, stops: 0, guidances: 0, oks: 0,
+      visitReport: '',
+      deadline: null, deadlinesOverdue: null,
+    },
+    {
+      companyVisitId: 1021, companyName: 'Alta Fiskeoppdrett AS',
+      status: 'completed', date: { value: '2026-01-20', inViolation: false },
+      municipality: 'Alta', address: 'Sjøveien 3, Alta',
+      workplace: { value: 'Merdanlegg Sør' },
+      issues: 2, stops: 0, guidances: 0, oks: 8,
+      visitReport: 'https://example.com/r/1021',
+      deadline: null, deadlinesOverdue: null,
+    },
+    {
+      companyVisitId: 1022, companyName: 'Kongsberg Forsvarssystemer', companyAka: 'KFS',
+      status: 'draft', date: { value: '2026-03-09', inViolation: false },
+      municipality: 'Kongsberg', address: 'Teknologiveien 1, Kongsberg',
+      workplace: { value: 'Monteringshall C' },
+      issues: 0, stops: 0, guidances: 1, oks: 2,
+      visitReport: '',
+      deadline: null, deadlinesOverdue: null,
+    },
+    {
+      companyVisitId: 1023, companyName: 'Larvik Meieri SA',
+      status: 'follow_up', date: { value: '2026-02-08', inViolation: false },
+      municipality: 'Larvik', address: 'Meierigate 8, Larvik',
+      workplace: null,
+      issues: 1, stops: 1, guidances: 1, oks: 3,
+      visitReport: '',
+      deadline: '2026-03-05', deadlinesOverdue: true,
+    },
+    {
+      companyVisitId: 1024, companyName: 'Skien Rørleggerservice AS',
+      status: 'scheduled', date: { value: '2026-03-28', inViolation: false },
+      municipality: 'Skien', address: 'Industrigata 2, Skien',
+      workplace: null,
+      issues: 0, stops: 0, guidances: 0, oks: 0,
+      visitReport: '',
+      deadline: null, deadlinesOverdue: null,
+    },
+  ];
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LABELS & CSS CLASSES
+  // ═══════════════════════════════════════════════════════════════════════════
+  const statusLabels = {
+    completed: 'Ferdig',
+    draft:     'Utkast',
+    follow_up: 'Oppfølging',
+    scheduled: 'Planlagt',
+    edit:      'Redigering',
+  };
+
+  const statusClasses = {
+    completed: 'status-completed',
+    draft:     'status-draft',
+    follow_up: 'status-follow_up',
+    scheduled: 'status-scheduled',
+    edit:      'status-edit',
+  };
+
+  // Board bucket mapping: edit goes in draft column
+  const boardBucket = {
+    completed: 'finished',
+    draft:     'draft',
+    edit:      'draft',
+    follow_up: 'followup',
+  };
+
+  // Sort column label map
+  const sortColLabels = {
+    status:       'status',
+    companyName:  'bedrift',
+    date:         'dato',
+    municipality: 'kommune',
+    workplace:    'arbeidsplass',
+    deadline:     'frist',
+  };
+
+  // Logical workflow order for status sorting
+  const statusOrder = { draft: 0, edit: 1, follow_up: 2, scheduled: 3, completed: 4 };
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STATE
+  // ═══════════════════════════════════════════════════════════════════════════
+  let currentView = 'table';
+  let sortColumn    = null;   // null = default/unsorted
+  let sortDirection = null;   // null | 'asc' | 'desc'
+  let activeFilters = {
+    status: null, municipality: null, company: null,
+    datoFra: null, datoTil: null,
+    fristFra: null, fristTil: null,
+  };
+  let searchQuery   = '';
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // HELPERS
+  // ═══════════════════════════════════════════════════════════════════════════
+  function formatDate(val) {
+    if (!val) return '—';
+    // Convert YYYY-MM-DD → DD.MM.YYYY
+    const [y, m, d] = val.split('-');
+    return `${d}.${m}.${y}`;
+  }
+
+  // Norwegian card date format: "12. mar 2026"
+  function formatDateCard(val) {
+    if (!val) return '—';
+    const months = ['jan','feb','mar','apr','mai','jun','jul','aug','sep','okt','nov','des'];
+    const [y, m, d] = val.split('-');
+    return `${parseInt(d, 10)}. ${months[parseInt(m, 10) - 1]} ${y}`;
+  }
+
+  function isDeadlineOverdue(v) {
+    return v.deadlinesOverdue === true;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // FILTERING
+  // ═══════════════════════════════════════════════════════════════════════════
+  function getFilteredVisits() {
+    return mockVisits.filter(v => {
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        const fields = [
+          v.companyName,
+          v.companyAka || '',
+          v.municipality,
+          v.address,
+          v.workplace ? v.workplace.value : '',
+        ];
+        if (!fields.some(f => f.toLowerCase().includes(q))) return false;
+      }
+      if (activeFilters.status       && v.status        !== activeFilters.status)       return false;
+      if (activeFilters.municipality && v.municipality  !== activeFilters.municipality) return false;
+      if (activeFilters.company      && v.companyName   !== activeFilters.company)      return false;
+      if (activeFilters.datoFra && v.date.value < activeFilters.datoFra) return false;
+      if (activeFilters.datoTil && v.date.value > activeFilters.datoTil) return false;
+      if (activeFilters.fristFra && (!v.deadline || v.deadline < activeFilters.fristFra)) return false;
+      if (activeFilters.fristTil && (!v.deadline || v.deadline > activeFilters.fristTil)) return false;
+      return true;
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SORTING
+  // ═══════════════════════════════════════════════════════════════════════════
+  function sortVisits(list) {
+    if (!sortColumn) return [...list]; // default: natural order
+    return [...list].sort((a, b) => {
+      let valA, valB;
+      switch (sortColumn) {
+        case 'status':
+          valA = statusOrder[a.status] ?? 99;
+          valB = statusOrder[b.status] ?? 99;
+          break;
+        case 'companyName':
+          valA = a.companyName; valB = b.companyName; break;
+        case 'date':
+          valA = a.date.value; valB = b.date.value; break;
+        case 'municipality':
+          valA = a.municipality; valB = b.municipality; break;
+        case 'workplace':
+          valA = a.workplace ? a.workplace.value : 'zzz';
+          valB = b.workplace ? b.workplace.value : 'zzz';
+          break;
+        case 'deadline':
+          valA = a.deadline || '9999-99-99';
+          valB = b.deadline || '9999-99-99';
+          break;
+        default:
+          valA = a.date.value; valB = b.date.value;
+      }
+      if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+      if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // INSPECTION BADGES
+  // ═══════════════════════════════════════════════════════════════════════════
+  function renderInspectionBadges(v) {
+    const hasAny = v.issues > 0 || v.stops > 0 || v.oks > 0 || v.guidances > 0;
+    if (!hasAny) return '<span style="color:var(--grey-200)">—</span>';
+
+    const parts = [];
+
+    if (v.issues > 0) parts.push(`
+      <span class="insp-badge issues">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
+        ${v.issues}
+      </span>`);
+
+    if (v.stops > 0) parts.push(`
+      <span class="insp-badge stops">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"/></svg>
+        ${v.stops}
+      </span>`);
+
+    if (v.oks > 0) parts.push(`
+      <span class="insp-badge oks">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+        ${v.oks}
+      </span>`);
+
+    if (v.guidances > 0) parts.push(`
+      <span class="insp-badge guidances">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+        ${v.guidances}
+      </span>`);
+
+    return `<div class="inspection-badges">${parts.join('')}</div>`;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // RENDER TABLE
+  // ═══════════════════════════════════════════════════════════════════════════
+  function renderTable() {
+    const filtered  = getFilteredVisits();
+    const sorted    = sortVisits(filtered);
+    const tbody     = document.getElementById('tableBody');
+    const emptyState = document.getElementById('emptyState');
+    const clearBtn   = document.getElementById('clearSearch');
+
+    document.getElementById('resultsCount').textContent = filtered.length + ' tilsyn';
+
+    // Sort label
+    const sortText = sortColumn
+      ? `Sortert etter ${sortColLabels[sortColumn] || sortColumn} ${sortDirection === 'asc' ? '↑' : '↓'}`
+      : 'Standard rekkefølge';
+    document.getElementById('sortLabel').textContent = sortText;
+    document.getElementById('resultsSortLabel').textContent = sortText;
+
+    if (filtered.length === 0) {
+      emptyState.classList.add('visible');
+      clearBtn.classList.toggle('visible', searchQuery.length > 0);
+      tbody.innerHTML = '';
+      return;
+    }
+
+    emptyState.classList.remove('visible');
+
+    tbody.innerHTML = sorted.map(v => {
+      const overdue = isDeadlineOverdue(v);
+      const overdueClass = overdue ? 'row-overdue' : '';
+
+      const statusClass = statusClasses[v.status] || '';
+      const statusLabel = statusLabels[v.status] || v.status;
+
+      const dateClass = v.date.inViolation ? 'td-date violation' : 'td-date';
+
+      const workplaceVal = v.workplace ? v.workplace.value : null;
+      const workplaceHtml = workplaceVal
+        ? `<span class="td-workplace">${workplaceVal}</span>`
+        : `<span class="td-null">—</span>`;
+
+      const deadlineHtml = v.deadline
+        ? `<span class="td-deadline${v.deadlinesOverdue ? ' overdue' : ''}">${formatDate(v.deadline)}</span>`
+        : `<span class="td-null">—</span>`;
+
+      return `<tr class="${overdueClass}" data-id="${v.companyVisitId}" onclick="alert('Åpner besøk: ${v.companyName.replace(/'/g, "\\'")}')">
+        <td><span class="visit-tag ${statusClass}">${statusLabel}</span></td>
+        <td>
+          <div class="company-cell">
+            <span class="company-primary">${v.companyName}</span>
+            ${v.companyAka ? `<span class="company-secondary">${v.companyAka}</span>` : ''}
+          </div>
+        </td>
+        <td><span class="${dateClass}">${formatDate(v.date.value)}</span></td>
+        <td class="td-municipality">${v.municipality}</td>
+        <td>${renderInspectionBadges(v)}</td>
+        <td>${workplaceHtml}</td>
+        <td>${deadlineHtml}</td>
+      </tr>`;
+    }).join('');
+
+    // Update sort header indicators
+    document.querySelectorAll('.visit-table th[data-sort]').forEach(th => {
+      const col = th.dataset.sort;
+      const arrow = th.querySelector('.sort-arrow');
+      if (col === sortColumn && sortDirection) {
+        th.classList.add('sorted');
+        arrow.textContent = sortDirection === 'asc' ? '↑' : '↓';
+      } else {
+        th.classList.remove('sorted');
+        arrow.textContent = '↕';
+      }
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // RENDER BOARD
+  // ═══════════════════════════════════════════════════════════════════════════
+  function renderBoard() {
+    const filtered = getFilteredVisits();
+    const groups = { draft: [], followup: [], finished: [] };
+
+    filtered.forEach(v => {
+      if (v.status === 'scheduled') return; // Skip scheduled visits in board view
+      const bucket = boardBucket[v.status] || 'draft';
+      groups[bucket].push(v);
+    });
+
+    // Sort follow-up column by deadline soonest first; others by date desc
+    Object.keys(groups).forEach(bucket => {
+      groups[bucket].sort((a, b) => {
+        if (bucket === 'followup') {
+          const fA = a.deadline || '9999-99-99';
+          const fB = b.deadline || '9999-99-99';
+          return fA < fB ? -1 : fA > fB ? 1 : 0;
+        }
+        return b.date.value < a.date.value ? -1 : 1;
+      });
+    });
+
+    // ── SVG icons ──────────────────────────────────────────────────────────────
+    const svgCal = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+    const svgPin = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>`;
+    const svgChevron = `<svg class="chevron-right" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
+    const svgAlert = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
+    const svgStop  = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`;
+    const svgOk    = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+    const svgInfo  = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+
+    // ── Status label map ───────────────────────────────────────────────────────
+    const statusLabels = {
+      completed: 'Ferdig',
+      draft:     'Utkast',
+      follow_up: 'Oppfølging',
+      scheduled: 'Planlagt',
+      edit:      'Under arbeid',
+    };
+
+    Object.keys(groups).forEach(bucket => {
+      document.getElementById(`count-${bucket}`).textContent = groups[bucket].length;
+      const container = document.getElementById(`cards-${bucket}`);
+
+      if (groups[bucket].length === 0) {
+        container.innerHTML = `<div class="board-cards-empty">Ingen besøk</div>`;
+        return;
+      }
+
+      container.innerHTML = groups[bucket].map(v => {
+        const overdueCls = v.deadlinesOverdue ? ' card-overdue' : '';
+        const statusLabel = statusLabels[v.status] || v.status;
+
+        // Inspection row
+        let inspItems = '';
+        if (v.issues    > 0) inspItems += `<span class="ic alert">${svgAlert} ${v.issues}</span>`;
+        if (v.stops     > 0) inspItems += `<span class="ic stop">${svgStop} ${v.stops}</span>`;
+        if (v.oks       > 0) inspItems += `<span class="ic ok">${svgOk} ${v.oks}</span>`;
+        if (v.guidances > 0) inspItems += `<span class="ic info">${svgInfo} ${v.guidances}</span>`;
+        if (!inspItems)      inspItems  = `<span class="ic-none">—</span>`;
+
+        const address = v.address || (v.workplace ? v.workplace.value : '');
+        const addressHtml = address
+          ? `<div class="card-address">${svgPin} ${address}</div>`
+          : '';
+
+        return `<div class="visit-card${overdueCls}" onclick="alert('Åpner besøk: ${v.companyName.replace(/'/g, "\\'")}')">
+          <div class="card-header">
+            <span class="card-company">${v.companyName}</span>
+            <span class="tag ${v.status}"><span class="tag-dot"></span>${statusLabel}</span>
+          </div>
+          <div class="card-date">${svgCal} ${formatDateCard(v.date.value)}</div>
+          <div class="card-footer">
+            <div class="card-footer-row">
+              <div class="inspection-row">${inspItems}</div>
+              ${svgChevron}
+            </div>
+            ${addressHtml}
+          </div>
+        </div>`;
+      }).join('');
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════════════════════
+  function render() {
+    renderTable();
+    renderBoard();
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // VIEW TOGGLE
+  // ═══════════════════════════════════════════════════════════════════════════
+  document.querySelectorAll('.view-toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentView = btn.dataset.view;
+      document.querySelectorAll('.view-toggle-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const tableView    = document.getElementById('tableView');
+      const boardView    = document.getElementById('boardView');
+      const sortInd      = document.getElementById('sortIndicator');
+      const resultsHeader= document.getElementById('resultsHeader');
+
+      if (currentView === 'table') {
+        tableView.classList.remove('hidden');
+        boardView.classList.remove('active');
+        sortInd.style.display = '';
+        resultsHeader.style.display = '';
+      } else {
+        tableView.classList.add('hidden');
+        boardView.classList.add('active');
+        sortInd.style.display = 'none';
+        resultsHeader.style.display = 'none';
+      }
+      render();
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // COLUMN SORT
+  // ═══════════════════════════════════════════════════════════════════════════
+  document.querySelectorAll('.visit-table th[data-sort]').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = th.dataset.sort;
+      if (sortColumn === col) {
+        if (sortDirection === 'asc') {
+          sortDirection = 'desc';           // 2nd click: descending
+        } else {
+          sortColumn    = null;             // 3rd click: reset to default
+          sortDirection = null;
+        }
+      } else {
+        sortColumn    = col;
+        sortDirection = 'asc';             // 1st click always ascending
+      }
+      render();
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // FILTERS — populate dynamic dropdowns, wire all interactions
+  // ═══════════════════════════════════════════════════════════════════════════
+  let openDropdown = null;
+
+  // Populate Virksomhet: top 5 unique company names, alphabetical
+  (function populateCompanies() {
+    const items = [...new Set(mockVisits.map(v => v.companyName))].sort().slice(0, 5);
+    const container = document.getElementById('dropdown-company');
+    const clearEl   = container.querySelector('.filter-clear');
+    items.forEach(name => {
+      const div = document.createElement('div');
+      div.className = 'filter-dropdown-item';
+      div.dataset.value = name;
+      div.textContent = name;
+      container.insertBefore(div, clearEl);
+    });
+  })();
+
+  // Populate Kommune: top 5 unique municipalities, alphabetical
+  (function populateMunicipalities() {
+    const items = [...new Set(mockVisits.map(v => v.municipality))].sort().slice(0, 5);
+    const container = document.getElementById('dropdown-municipality');
+    const clearEl   = container.querySelector('.filter-clear');
+    items.forEach(name => {
+      const div = document.createElement('div');
+      div.className = 'filter-dropdown-item';
+      div.dataset.value = name;
+      div.textContent = name;
+      container.insertBefore(div, clearEl);
+    });
+  })();
+
+  // ── Pill toggle (open / close dropdown) ───────────────────────────────────
+  document.querySelectorAll('.filter-pill').forEach(pill => {
+    pill.addEventListener('click', e => {
+      // Don't stop propagation if click is on an item or clear button — let them bubble to document
+      if (e.target.closest('.filter-dropdown-item') || e.target.closest('.filter-clear')) {
+        return; // Let the event bubble to document listeners
+      }
+      e.stopPropagation();
+      const dropdown = pill.querySelector('.filter-dropdown');
+      if (openDropdown && openDropdown !== dropdown) openDropdown.classList.remove('open');
+      dropdown.classList.toggle('open');
+      openDropdown = dropdown.classList.contains('open') ? dropdown : null;
+    });
+  });
+
+  // ── Single-select dropdown items (Status, Virksomhet, Kommune) ────────────
+  document.addEventListener('click', e => {
+    let item = e.target;
+    console.log('📍 Click detected on:', e.target.className || e.target.tagName);
+    // Walk up the DOM tree to find .filter-dropdown-item if e.target isn't one
+    while (item && !item.classList?.contains('filter-dropdown-item')) {
+      item = item.parentElement;
+      if (!item || item.nodeType !== 1) break; // Stop if we hit document or non-element
+    }
+
+    if (item && item.classList.contains('filter-dropdown-item')) {
+      console.log('✅ Found dropdown item:', item.dataset.value);
+      e.stopPropagation();
+      const dropdown   = item.closest('.filter-dropdown');
+      const pill       = item.closest('.filter-pill');
+      const filterName = pill?.dataset.filter;
+      const wasSelected = item.classList.contains('selected');
+
+      if (!dropdown || !pill || !filterName) return; // Safety check
+
+      dropdown.querySelectorAll('.filter-dropdown-item').forEach(i => i.classList.remove('selected'));
+
+      if (!wasSelected) {
+        item.classList.add('selected');
+        activeFilters[filterName] = item.dataset.value;
+        pill.classList.add('active');
+      } else {
+        activeFilters[filterName] = null;
+        pill.classList.remove('active');
+      }
+
+      dropdown.classList.remove('open');
+      openDropdown = null;
+      render();
+      return;
+    }
+  });
+
+  // ── Date input helper: update pill label to show selected range ───────────
+  function updateDatePillLabel(filterType) {
+    const pill  = document.querySelector(`.filter-pill[data-filter="${filterType}"]`);
+    const label = pill.querySelector('.filter-pill-label');
+    const fra   = activeFilters[filterType + 'Fra'];
+    const til   = activeFilters[filterType + 'Til'];
+    const title = filterType === 'dato' ? 'Dato' : 'Frist';
+
+    if (fra || til) {
+      pill.classList.add('active');
+      if (fra && til) label.textContent = `${title}: ${formatDate(fra)} – ${formatDate(til)}`;
+      else if (fra)   label.textContent = `${title}: fra ${formatDate(fra)}`;
+      else            label.textContent = `${title}: til ${formatDate(til)}`;
+    } else {
+      pill.classList.remove('active');
+      label.textContent = title;
+    }
+  }
+
+  // ── Date inputs: prevent dropdown closing, update state ───────────────────
+  // Prevent clicks inside date section from bubbling to pill (which would toggle closed)
+  document.querySelectorAll('.filter-date-section').forEach(el => {
+    el.addEventListener('click', e => e.stopPropagation());
+  });
+
+  ['dato-fra', 'dato-til', 'frist-fra', 'frist-til'].forEach(id => {
+    document.getElementById(id).addEventListener('change', e => {
+      const [filterType, dir] = id.split('-'); // e.g. ['dato','fra']
+      const key = filterType + dir.charAt(0).toUpperCase() + dir.slice(1); // 'datoFra'
+      activeFilters[key] = e.target.value || null;
+      updateDatePillLabel(filterType);
+      render();
+    });
+  });
+
+  // ── Nullstill (clear) buttons ─────────────────────────────────────────────
+  document.addEventListener('click', e => {
+    let clearBtn = e.target;
+    // Walk up to find .filter-clear if e.target isn't one
+    while (clearBtn && !clearBtn.classList?.contains('filter-clear')) {
+      clearBtn = clearBtn.parentElement;
+      if (!clearBtn || clearBtn.nodeType !== 1) break;
+    }
+
+    if (!clearBtn || !clearBtn.classList.contains('filter-clear')) return;
+    e.stopPropagation();
+    const dropdown   = clearBtn.closest('.filter-dropdown');
+    const pill       = clearBtn.closest('.filter-pill');
+    const filterName = pill?.dataset.filter;
+
+    if (!dropdown || !pill || !filterName) return; // Safety check
+
+    dropdown.querySelectorAll('.filter-dropdown-item').forEach(i => i.classList.remove('selected'));
+
+    if (filterName === 'dato' || filterName === 'frist') {
+      activeFilters[filterName + 'Fra'] = null;
+      activeFilters[filterName + 'Til'] = null;
+      dropdown.querySelectorAll('.filter-date-input').forEach(inp => inp.value = '');
+      const lbl = pill.querySelector('.filter-pill-label');
+      if (lbl) lbl.textContent = filterName === 'dato' ? 'Dato' : 'Frist';
+    } else {
+      activeFilters[filterName] = null;
+    }
+
+    pill.classList.remove('active');
+    dropdown.classList.remove('open');
+    openDropdown = null;
+    render();
+  });
+
+  // ── Close on outside click ────────────────────────────────────────────────
+  document.addEventListener('click', () => {
+    if (openDropdown) { openDropdown.classList.remove('open'); openDropdown = null; }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SEARCH
+  // ═══════════════════════════════════════════════════════════════════════════
+  const searchInput = document.getElementById('searchInput');
+  const searchClear = document.getElementById('searchClear');
+
+  searchInput.addEventListener('input', e => {
+    searchQuery = e.target.value;
+    searchClear.classList.toggle('visible', searchQuery.length > 0);
+    render();
+  });
+
+  searchClear.addEventListener('click', () => {
+    searchQuery = '';
+    searchInput.value = '';
+    searchInput.focus();
+    searchClear.classList.remove('visible');
+    render();
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CLEAR SEARCH (empty state button)
+  // ═══════════════════════════════════════════════════════════════════════════
+  document.getElementById('clearSearch').addEventListener('click', () => {
+    searchQuery = '';
+    searchInput.value = '';
+    searchClear.classList.remove('visible');
+    activeFilters = { status: null, municipality: null, company: null, datoFra: null, datoTil: null, fristFra: null, fristTil: null };
+    document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.filter-dropdown-item').forEach(i => i.classList.remove('selected'));
+    document.querySelectorAll('.filter-date-input').forEach(inp => inp.value = '');
+    ['dato', 'frist'].forEach(type => {
+      const lbl = document.querySelector(`.filter-pill[data-filter="${type}"] .filter-pill-label`);
+      if (lbl) lbl.textContent = type === 'dato' ? 'Dato' : 'Frist';
+    });
+    render();
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // INIT
+  // ═══════════════════════════════════════════════════════════════════════════
+  render();
+</script>
+</body>
+</html>
